@@ -1,0 +1,1438 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2430">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+<title>RetiSim Web</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: dark instrument stage (left) + clinic-white control console (right), case bench across the bottom; stacks on portrait */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #1d2836;
+  --muted: #5b6878;
+  --line: #d4dbe3;
+  --field: #f5f7f9;
+  --accent: #1f6fb2;
+  --stage: #1b2430;
+  --stage-ink: #c9d3dd;
+  --minus: #df4a39;
+  --plus: #23a35a;
+  --dial: #34475d;
+  --ok: #1f9d55;
+  --info: #2b7cc0;
+  --warn: #e38b0b;
+  --bad: #cf3a2b;
+  --neutral-btn: #7b8894;
+  --axis-ink: #8a3fb5;
+  --orient-ink: #dc6a0c;
+  --overlay: rgba(12, 18, 26, .55);
+  --font-ui: 'Be Vietnam Pro', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151c; --panel: #18212b; --ink: #e2e8ee; --muted: #93a1b0; --line: #2a3644; --field: #0f151c;
+    --accent: #5ea8e8; --dial: #3a5272; --neutral-btn: #5d6a77; --axis-ink: #c891f2; --orient-ink: #ffa24a;
+    --overlay: rgba(0, 0, 0, .65); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151c; --panel: #18212b; --ink: #e2e8ee; --muted: #93a1b0; --line: #2a3644; --field: #0f151c;
+  --accent: #5ea8e8; --dial: #3a5272; --neutral-btn: #5d6a77; --axis-ink: #c891f2; --orient-ink: #ffa24a;
+  --overlay: rgba(0, 0, 0, .65); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .38; cursor: not-allowed; }
+
+/* ---------- Intro ---------- */
+.intro { min-height: 100%; display: grid; place-items: center; padding-block: 24px; }
+.intro-card {
+  width: 100%; max-width: 470px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 28px 24px 24px; display: grid; gap: 16px; justify-items: center; text-align: center;
+}
+.intro-card svg.logo { width: 132px; height: 132px; }
+.intro-card h1 { margin: 0; color: var(--accent); font-size: clamp(22px, 5vw, 28px); line-height: 1.25; text-wrap: balance; letter-spacing: .01em; }
+.intro-card .app-tag { font-family: var(--font-num); font-size: 13px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.lang-row { display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.credits { font-size: 13.5px; color: var(--muted); display: grid; gap: 3px; }
+.credits strong { color: var(--ink); font-weight: 600; }
+.btn-start { min-width: 170px; min-height: 52px; font-size: 18px; }
+
+/* ---------- App shell ---------- */
+.app { max-width: 1480px; margin: 0 auto; padding-block: 12px; display: grid; gap: 12px; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bar .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bar .brand svg { width: 34px; height: 34px; flex: none; }
+.bar .brand b { font-size: 17px; }
+.bar .brand span { color: var(--muted); font-size: 13px; }
+.bar .tools { display: flex; gap: 8px; align-items: center; }
+.chip-btn {
+  min-height: 38px; padding: 0 14px; border-radius: 19px; border: 1px solid var(--line); background: var(--panel);
+  font-weight: 600; font-size: 13.5px;
+}
+.top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 450px); gap: 12px; }
+.stage {
+  background: var(--stage); border-radius: 14px; position: relative; min-height: 380px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.stage canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+.stage-credit { position: absolute; left: 14px; bottom: 10px; color: var(--stage-ink); font-size: 11.5px; line-height: 1.35; opacity: .8; pointer-events: none; }
+.stage-credit b { font-weight: 600; }
+.stage-hint { position: absolute; right: 12px; bottom: 10px; color: var(--stage-ink); font-size: 11.5px; opacity: .6; pointer-events: none; text-align: right; }
+.controls { display: grid; gap: 12px; align-content: start; min-width: 0; }
+
+fieldset.group { margin: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 8px 12px 12px; min-width: 0; }
+fieldset.group legend { color: var(--accent); font-weight: 700; font-size: 15px; padding: 0 6px; }
+.rows { display: grid; gap: 8px; }
+.row { display: grid; grid-template-columns: 8.6em minmax(0, 1fr); align-items: center; gap: 10px; min-height: 42px; }
+.row > label, .row > .lbl { color: var(--muted); font-size: 14px; }
+.row select { width: 100%; }
+select {
+  height: 42px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); padding: 0 10px;
+}
+.slider-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px 3.6em; gap: 8px; align-items: center; }
+.slider-row.no-btn { grid-template-columns: minmax(0, 1fr) 3.6em; }
+.slider-row output { font-family: var(--font-num); font-weight: 600; text-align: right; font-size: 14px; }
+input[type=range] { width: 100%; height: 36px; accent-color: var(--accent); margin: 0; }
+.sq-btn { height: 42px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); font-size: 20px; font-weight: 600; }
+.orient-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.stepper { display: inline-grid; grid-template-columns: 42px minmax(4.6em, 1fr) 42px; height: 42px; border-radius: 9px; overflow: hidden; border: 1px solid var(--line); width: 100%; max-width: 210px; }
+.stepper button { border: 0; color: #fff; font-size: 22px; font-weight: 600; background: var(--dial); padding: 0; }
+.stepper button.minus { background: var(--minus); }
+.stepper button.plus { background: var(--plus); }
+.stepper .val, .stepper input {
+  display: flex; align-items: center; justify-content: center; text-align: center; border: 0; min-width: 0; width: 100%;
+  font-family: var(--font-num); font-weight: 600; font-size: 16.5px; background: var(--field); font-variant-numeric: tabular-nums;
+}
+.stepper.dial button { background: var(--dial); }
+.val.axis { color: var(--axis-ink); }
+.val.orient { color: var(--orient-ink); }
+.stepper.is-off { opacity: .45; }
+.stepper.is-off button { cursor: not-allowed; }
+
+.lens-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.cell { display: grid; gap: 4px; min-width: 0; }
+.cell > .lbl { font-size: 13px; color: var(--muted); }
+.ro-box {
+  height: 42px; border-radius: 9px; border: 1px dashed var(--line); background: var(--field); display: flex; align-items: center;
+  justify-content: center; font-family: var(--font-num); font-weight: 600; font-size: 16.5px; max-width: 210px;
+}
+.ro-box.is-off { opacity: .45; }
+
+.btn {
+  min-height: 46px; border-radius: 10px; border: 0; padding: 0 16px; color: #fff; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center; line-height: 1.2;
+}
+.btn svg { width: 18px; height: 18px; flex: none; }
+.btn-green { background: var(--ok); }
+.btn-blue { background: var(--info); }
+.btn-amber { background: var(--warn); }
+.btn-grey { background: var(--neutral-btn); }
+.btn-wide { width: 100%; }
+.btn-sm { min-height: 42px; font-size: 14px; }
+
+/* ---------- Case bench ---------- */
+.case { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.case-left { display: grid; gap: 12px; align-content: start; }
+.case-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.answer-box {
+  min-height: 60px; border-radius: 10px; background: var(--field); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; text-align: center; padding: 8px 12px;
+}
+.answer-box.hidden-ans { color: var(--bad); }
+.answer-box.shown-ans { color: var(--ok); font-family: var(--font-num); }
+.manual { border-left: 1px solid var(--line); padding-left: 16px; display: grid; gap: 8px; align-content: start; }
+.manual h3 { margin: 0; font-size: 14.5px; }
+.manual .row { grid-template-columns: 6.6em minmax(0, 1fr); }
+.manual .hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+.footer { color: var(--muted); font-size: 12.5px; text-align: center; padding-bottom: 8px; display: grid; gap: 2px; }
+
+@media (max-width: 900px) {
+  .top { grid-template-columns: 1fr; }
+  .stage { aspect-ratio: 1; min-height: 0; max-height: 58vh; }
+}
+@media (max-width: 760px) {
+  .case { grid-template-columns: 1fr; }
+  .manual { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 12px; }
+}
+@media (max-width: 480px) {
+  .case-actions { grid-template-columns: 1fr; }
+  .lens-grid { grid-template-columns: 1fr; }
+  .row { grid-template-columns: 7.4em minmax(0, 1fr); }
+  .stage-hint { display: none; }
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed; inset: 0; background: var(--overlay); z-index: 50; display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.modal { background: var(--panel); color: var(--ink); border-radius: 16px; width: 100%; max-width: 540px; max-height: 100%; overflow: auto; padding: 20px 22px; display: grid; gap: 14px; border: 1px solid var(--line); }
+.modal h2 { margin: 0; font-size: 18px; display: flex; gap: 10px; align-items: center; }
+.modal h2 svg { width: 26px; height: 26px; flex: none; }
+.modal .meta { display: grid; gap: 2px; color: var(--muted); }
+.rx-lines { display: grid; gap: 4px; }
+.rx-lines .rx { font-family: var(--font-num); font-weight: 600; }
+.rx-lines .final { color: var(--info); font-weight: 700; }
+.rx-lines .truth { color: var(--ok); font-weight: 700; }
+.tol { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tol h3 { margin: 0; padding: 8px 12px; font-size: 14px; display: flex; gap: 8px; align-items: center; background: var(--field); }
+.tol h3 svg { width: 18px; height: 18px; }
+.tol table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tol td { padding: 7px 12px; border-top: 1px solid var(--line); }
+.tol td.num { font-family: var(--font-num); font-weight: 600; text-align: right; white-space: nowrap; }
+.tol td.tl { color: var(--muted); text-align: right; white-space: nowrap; }
+.good { color: var(--ok); }
+.badc { color: var(--bad); }
+.na { color: var(--muted); font-style: italic; }
+.warnbox { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--warn); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.warnbox svg { width: 22px; height: 22px; flex: none; color: var(--warn); }
+.verdict { display: flex; gap: 10px; align-items: center; font-weight: 700; font-size: 17px; }
+.verdict svg { width: 28px; height: 28px; flex: none; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.help-list { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.keys { width: 100%; border-collapse: collapse; font-size: 14px; }
+.keys td { padding: 6px 8px; border-top: 1px solid var(--line); }
+.keys td:first-child { font-family: var(--font-num); font-weight: 600; white-space: nowrap; }
+.keys td:last-child { font-family: var(--font-num); text-align: right; white-space: nowrap; color: var(--muted); }
+.help-sec { display: grid; gap: 8px; }
+.help-sec h3 { margin: 0; font-size: 15px; color: var(--accent); }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60;
+  background: var(--ink); color: var(--panel); padding: 10px 18px; border-radius: 22px; font-weight: 600; font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .25); max-width: calc(100% - 32px); text-align: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .toast { animation: toast-in .18s ease-out; }
+  @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="logo" viewBox="0 0 120 120">
+      <defs>
+        <linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f86d6"/><stop offset="1" stop-color="#123f78"/></linearGradient>
+        <radialGradient id="lg-iris" cx=".5" cy=".5" r=".5"><stop offset=".45" stop-color="#2a150c"/><stop offset=".8" stop-color="#8a4a20"/><stop offset="1" stop-color="#4a250f"/></radialGradient>
+        <linearGradient id="lg-beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffb347" stop-opacity=".2"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
+      </defs>
+      <rect x="4" y="4" width="112" height="112" rx="26" fill="url(#lg-bg)"/>
+      <path d="M14 58 C34 32 74 32 94 58 C74 84 34 84 14 58Z" fill="#f7f2ee"/>
+      <circle cx="54" cy="58" r="20" fill="url(#lg-iris)"/>
+      <circle cx="54" cy="58" r="9" fill="#ff8a3d"/>
+      <circle cx="50" cy="54" r="2.6" fill="#fff"/>
+      <rect x="49" y="18" width="10" height="82" rx="3" fill="url(#lg-beam)" opacity=".55" transform="rotate(-25 54 58)"/>
+      <rect x="92" y="40" width="16" height="36" rx="5" fill="#1b2430"/>
+      <circle cx="100" cy="52" r="4" fill="#ffd27a"/>
+    </symbol>
+    <symbol id="i-plus-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M12 11v6M9 14h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 12.5l2.6 2.6L16 9.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-apply" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-report" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 3.5h6v3H9zM8.5 11h7M8.5 14.5h7M8.5 18h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 9.5h18M3 14.8h18M9.5 4v16" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3.5L2.5 20h19z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4.5M12 17.3v.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<!-- ================= INTRO ================= -->
+<section class="intro" id="intro">
+  <div class="intro-card">
+    <svg class="logo" aria-hidden="true"><use href="#logo"/></svg>
+    <div class="app-tag">RetiSim Web · v<span class="js-version"></span></div>
+    <h1 data-i18n="introTitle">PHẦN MỀM MÔ PHỎNG SOI BÓNG ĐỒNG TỬ</h1>
+    <div class="lang-row">
+      <label for="introLang">Ngôn ngữ/Language</label>
+      <select id="introLang">
+        <option value="vi">Tiếng Việt</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <div class="credits">
+      <span data-i18n="creditBuild">Bản web xây dựng mới hoàn toàn bởi</span>
+      <strong class="js-builder"></strong>
+      <span><span data-i18n="creditBased">Dựa trên phần mềm</span> <span class="js-orig-app"></span> <span data-i18n="creditOf">của tác giả</span> <span class="js-orig-author"></span></span>
+    </div>
+    <button class="btn btn-green btn-start" id="startBtn" type="button" data-i18n="start">Bắt đầu</button>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<div class="app" id="app" hidden>
+  <header class="bar">
+    <div class="brand">
+      <svg aria-hidden="true"><use href="#logo"/></svg>
+      <div><b>RetiSim Web</b> <span data-i18n="appSub">Mô phỏng soi bóng đồng tử</span></div>
+    </div>
+    <div class="tools">
+      <button class="chip-btn" id="helpBtn" type="button" data-i18n="helpBtn">Hướng dẫn thao tác</button>
+      <button class="chip-btn" id="langBtn" type="button">EN</button>
+    </div>
+  </header>
+
+  <div class="top">
+    <div class="stage" id="stage">
+      <canvas id="sim" aria-label="Vùng mô phỏng soi bóng đồng tử" role="img"></canvas>
+      <div class="stage-credit"><b>RetiSim Web</b> · <span class="js-builder"></span><br><span data-i18n="creditShort">Dựa trên RetiSim của</span> <span class="js-orig-author"></span></div>
+      <div class="stage-hint" id="stageHint"></div>
+    </div>
+
+    <div class="controls">
+      <fieldset class="group">
+        <legend data-i18n="g1">1. Thiết lập khoảng cách và phương pháp soi</legend>
+        <div class="rows">
+          <div class="row">
+            <label for="distSel" data-i18n="dist">Khoảng cách</label>
+            <select id="distSel"><option value="50">50 cm</option><option value="67">67 cm</option></select>
+          </div>
+          <div class="row">
+            <label for="methodSel" data-i18n="method">Phương pháp</label>
+            <select id="methodSel">
+              <option value="routine" data-i18n="mRoutine">Soi thường quy</option>
+              <option value="wd" data-i18n="mWd">Kính bù khoảng cách</option>
+              <option value="fog" data-i18n="mFog">Sương mù toàn phần</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="brightRange" data-i18n="bright">Độ sáng bóng đồng tử</label>
+            <div class="slider-row no-btn">
+              <input type="range" id="brightRange" min="50" max="100" step="5" value="100">
+              <output id="brightOut">100%</output>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend data-i18n="g2">2. Đèn soi (Streak)</legend>
+        <div class="rows">
+          <div class="row">
+            <span class="lbl" data-i18n="orient">Hướng khe đèn</span>
+            <div class="orient-row">
+              <div class="stepper dial" style="max-width:170px">
+                <button type="button" id="orMinus" aria-label="−5°">−</button>
+                <div class="val orient" id="orVal">180°</div>
+                <button type="button" id="orPlus" aria-label="+5°">+</button>
+              </div>
+              <button class="btn btn-blue btn-sm" type="button" id="rot90Btn"><svg aria-hidden="true"><use href="#i-rotate"/></svg><span data-i18n="rot90">Xoay 90°</span></button>
+            </div>
+          </div>
+          <div class="row">
+            <label for="widthRange" data-i18n="width">Độ rộng khe đèn</label>
+            <div class="slider-row">
+              <button class="sq-btn" type="button" id="wMinus" aria-label="−5%">−</button>
+              <input type="range" id="widthRange" min="10" max="100" step="5" value="100">
+              <button class="sq-btn" type="button" id="wPlus" aria-label="+5%">+</button>
+              <output id="widthOut">100%</output>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend data-i18n="g3">3. Kính thử (Trung hòa)</legend>
+        <div class="lens-grid">
+          <div class="cell">
+            <span class="lbl" data-i18n="sph">Cầu (Sph)</span>
+            <div class="stepper"><button type="button" class="minus" id="sphMinus" aria-label="Sph −0.25">−</button><div class="val" id="sphVal">+0.00</div><button type="button" class="plus" id="sphPlus" aria-label="Sph +0.25">+</button></div>
+          </div>
+          <div class="cell">
+            <span class="lbl" data-i18n="wdLens">Kính bù (WD)</span>
+            <div class="ro-box" id="wdVal">+0.00</div>
+          </div>
+          <div class="cell">
+            <span class="lbl" data-i18n="cyl">Trụ (Cyl)</span>
+            <div class="stepper"><button type="button" class="minus" id="cylMinus" aria-label="Cyl −0.25">−</button><div class="val" id="cylVal">+0.00</div><button type="button" class="plus" id="cylPlus" aria-label="Cyl +0.25">+</button></div>
+          </div>
+          <div class="cell">
+            <span class="lbl" data-i18n="fog">Sương mù</span>
+            <div class="stepper" id="fogStepper"><button type="button" class="minus" id="fogMinus" aria-label="Fog −0.25">−</button><div class="val" id="fogVal">+0.00</div><button type="button" class="plus" id="fogPlus" aria-label="Fog +0.25">+</button></div>
+          </div>
+          <div class="cell">
+            <span class="lbl" data-i18n="axis">Trục (Axis)</span>
+            <div class="stepper dial"><button type="button" id="axMinus" aria-label="Axis −5°">−</button><div class="val axis" id="axVal">180°</div><button type="button" id="axPlus" aria-label="Axis +5°">+</button></div>
+          </div>
+          <div class="cell" style="align-content:end">
+            <button class="btn btn-grey btn-sm" type="button" id="removeWdBtn" data-i18n="removeWd">Tháo kính bù khoảng cách</button>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="btn btn-grey btn-wide" type="button" id="resetTrialBtn"><svg aria-hidden="true"><use href="#i-reset"/></svg><span data-i18n="resetTrial">Đặt lại kính thử</span></button>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+  <fieldset class="group">
+    <legend data-i18n="g4">4. Quản lý ca mô phỏng</legend>
+    <div class="case">
+      <div class="case-left">
+        <div class="case-actions">
+          <button class="btn btn-green" type="button" id="newCaseBtn"><svg aria-hidden="true"><use href="#i-plus-file"/></svg><span data-i18n="newCase">Tạo ca mới</span></button>
+          <button class="btn btn-blue" type="button" id="toggleAnsBtn"><svg aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="toggleAns">Hiện/Ẩn đáp án</span></button>
+          <button class="btn btn-amber" type="button" id="checkBtn"><svg aria-hidden="true"><use href="#i-check-circle"/></svg><span data-i18n="check">Kiểm tra kết quả</span></button>
+        </div>
+        <div class="answer-box hidden-ans" id="answerBox" aria-live="polite">--- Kết quả đã bị ẩn ---</div>
+      </div>
+      <div class="manual">
+        <h3 data-i18n="manual">Nhập ca thủ công</h3>
+        <div class="row">
+          <label for="mSph" data-i18n="sph">Cầu (Sph)</label>
+          <div class="stepper"><button type="button" class="minus" id="mSphMinus" aria-label="−0.25">−</button><input id="mSph" inputmode="decimal" autocomplete="off" value="+0.00"><button type="button" class="plus" id="mSphPlus" aria-label="+0.25">+</button></div>
+        </div>
+        <div class="row">
+          <label for="mCyl" data-i18n="cyl">Trụ (Cyl)</label>
+          <div class="stepper"><button type="button" class="minus" id="mCylMinus" aria-label="−0.25">−</button><input id="mCyl" inputmode="decimal" autocomplete="off" value="+0.00"><button type="button" class="plus" id="mCylPlus" aria-label="+0.25">+</button></div>
+        </div>
+        <div class="row">
+          <label for="mAx" data-i18n="axis">Trục (Axis)</label>
+          <div class="stepper dial"><button type="button" id="mAxMinus" aria-label="−5°">−</button><input id="mAx" inputmode="numeric" autocomplete="off" value="180°" style="color:var(--orient-ink)"><button type="button" id="mAxPlus" aria-label="+5°">+</button></div>
+        </div>
+        <p class="hint" data-i18n="manualHint">Quy ước trụ âm. Sph −30.00 đến +25.00 D, Cyl −8.00 đến 0.00 D, Axis 1–180°.</p>
+        <button class="btn btn-amber" type="button" id="applyManualBtn"><svg aria-hidden="true"><use href="#i-apply"/></svg><span data-i18n="applyManual">Áp dụng công thức ca thủ công</span></button>
+      </div>
+    </div>
+  </fieldset>
+
+  <footer class="footer">
+    <span><b>RetiSim Web</b> v<span class="js-version"></span> · <span data-i18n="creditBuild">Bản web xây dựng mới hoàn toàn bởi</span> <span class="js-builder"></span></span>
+    <span><span data-i18n="creditBased">Dựa trên phần mềm</span> <span class="js-orig-app"></span> <span data-i18n="creditOf">của tác giả</span> <span class="js-orig-author"></span>. <span data-i18n="disclaimer">Phần mềm dùng cho đào tạo, không thay thế khám lâm sàng.</span></span>
+  </footer>
+</div>
+
+<!-- Report dialog -->
+<div class="overlay" id="reportOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <div id="reportBody"></div>
+    <div class="modal-actions"><button class="btn btn-blue" type="button" id="reportOk" style="min-width:96px">OK</button></div>
+  </div>
+</div>
+
+<!-- Help dialog -->
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div id="helpBody"></div>
+    <div class="modal-actions"><button class="btn btn-blue" type="button" id="helpOk" style="min-width:96px">OK</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   Cấu hình — sửa tại đây nếu cần đổi tên / thông tin ghi công
+   ============================================================ */
+const CONFIG = {
+  version: '1.0.0',
+  builder: 'Nguyễn Chí Hải',
+  originalApp: 'RetiSim 1.0.0',
+  originalAuthor: 'Đinh Hùng Thắng',
+};
+
+/* ============================================================
+   Ngôn ngữ
+   ============================================================ */
+const I18N = {
+  vi: {
+    introTitle: 'PHẦN MỀM MÔ PHỎNG SOI BÓNG ĐỒNG TỬ',
+    start: 'Bắt đầu',
+    appSub: 'Mô phỏng soi bóng đồng tử',
+    helpBtn: 'Hướng dẫn thao tác',
+    creditBuild: 'Bản web xây dựng mới hoàn toàn bởi',
+    creditBased: 'Dựa trên phần mềm',
+    creditOf: 'của tác giả',
+    creditShort: 'Dựa trên RetiSim của',
+    disclaimer: 'Phần mềm dùng cho đào tạo, không thay thế khám lâm sàng.',
+    g1: '1. Thiết lập khoảng cách và phương pháp soi',
+    dist: 'Khoảng cách',
+    method: 'Phương pháp',
+    mRoutine: 'Soi thường quy',
+    mWd: 'Kính bù khoảng cách',
+    mFog: 'Sương mù toàn phần',
+    bright: 'Độ sáng bóng đồng tử',
+    g2: '2. Đèn soi (Streak)',
+    orient: 'Hướng khe đèn',
+    rot90: 'Xoay 90°',
+    width: 'Độ rộng khe đèn',
+    g3: '3. Kính thử (Trung hòa)',
+    sph: 'Cầu (Sph)',
+    cyl: 'Trụ (Cyl)',
+    axis: 'Trục (Axis)',
+    wdLens: 'Kính bù (WD)',
+    fog: 'Sương mù',
+    removeWd: 'Tháo kính bù khoảng cách',
+    resetTrial: 'Đặt lại kính thử',
+    g4: '4. Quản lý ca mô phỏng',
+    newCase: 'Tạo ca mới',
+    toggleAns: 'Hiện/Ẩn đáp án',
+    check: 'Kiểm tra kết quả',
+    hiddenAns: '--- Kết quả đã bị ẩn ---',
+    answer: 'Đáp án',
+    manual: 'Nhập ca thủ công',
+    manualHint: 'Quy ước trụ âm. Sph −30.00 đến +25.00 D, Cyl −8.00 đến 0.00 D, Axis 1–180°.',
+    applyManual: 'Áp dụng công thức ca thủ công',
+    hintMouse: 'Rê chuột để quét · Lăn chuột: ±5° · Chuột phải: 90°',
+    hintTouch: 'Kéo ngón tay để quét · Xoay 2 ngón: ±5° · Chạm đúp: 90°',
+    hudStreak: 'Khe',
+    tNew: 'Đã tạo ca mới',
+    tManual: 'Đã áp dụng ca thủ công',
+    tRemovedWd: 'Đã tháo kính bù khoảng cách',
+    tRemovedFog: 'Đã quy đổi: Sph + Sương mù − kính làm việc',
+    tReset: 'Đã đặt lại kính thử',
+    tMethod: 'Đã đổi phương pháp, kính thử được đặt lại',
+    rptHeader: 'Kết quả đánh giá',
+    rptTitle: 'BÁO CÁO KẾT QUẢ SOI BÓNG ĐỒNG TỬ',
+    rptDist: 'Khoảng cách',
+    rptMethod: 'Phương pháp',
+    rptNeutral: 'Công thức kính của điểm trung hòa',
+    rptFinal: 'Kết quả (Công thức cuối)',
+    rptTruth: 'Đáp án thực tế',
+    rptTol: 'BẢNG DUNG SAI',
+    rptS: 'Độ Cầu (Sph)',
+    rptC: 'Độ Trụ (Cyl)',
+    rptA: 'Trục (Axis)',
+    tolWord: 'Dung sai',
+    axisNA: 'Không xét (không có loạn thị)',
+    warnWd: 'Bạn chưa tháo kính bù khoảng cách. Công thức cuối vẫn còn cộng kính bù {wd} D.',
+    warnFog: 'Bạn chưa trừ kính làm việc ({wd} D). Công thức cuối đang lấy Sph + Sương mù mà chưa quy đổi.',
+    vExcellent: 'XUẤT SẮC! BẠN ĐÃ TRUNG HÒA HOÀN HẢO.',
+    vPass: 'ĐẠT! KẾT QUẢ NẰM TRONG DUNG SAI.',
+    vFail: 'CHƯA ĐẠT. HÃY KIỂM TRA LẠI ĐIỂM TRUNG HÒA.',
+    helpTitle: 'Hướng dẫn thao tác',
+    helpTouchH: 'Trên tablet / màn hình cảm ứng',
+    helpTouch: [
+      'Chạm và kéo ngón tay ở bất kỳ đâu trong vùng mô phỏng để quét khe đèn. Có thể kéo ở phía trên hoặc dưới mắt để không che đồng tử.',
+      'Đặt hai ngón tay và xoay để đổi hướng khe đèn theo bước 5°.',
+      'Chạm đúp vào vùng mô phỏng để xoay nhanh khe đèn 90°.',
+      'Khi Cyl khác 0: chạm giữ vạch đỏ trên gọng kính thử rồi kéo để chỉnh trục (làm tròn 5°).',
+      'Giữ nút + / − để thay đổi giá trị liên tục.',
+    ],
+    helpMouseH: 'Chuột',
+    helpMouse: [
+      'Rê chuột trong vùng mô phỏng để quét khe đèn qua đồng tử.',
+      'Lăn bánh xe chuột: đổi hướng khe đèn 5°.',
+      'Bấm chuột phải: xoay nhanh 90°.',
+      'Khi Cyl khác 0: giữ chuột trái trên vạch đỏ của gọng và kéo để chỉnh trục.',
+    ],
+    helpKeysH: 'Phím tắt (bàn phím rời)',
+    keys: [
+      ['Q / 1', 'Tăng Cầu (Sph)', '+0.25 D'],
+      ['W / 2', 'Giảm Cầu (Sph)', '−0.25 D'],
+      ['A / 3', 'Tăng Trụ (Cyl), về gần 0', '+0.25 D'],
+      ['S / 4', 'Giảm Trụ (Cyl)', '−0.25 D'],
+      ['Z / 5', 'Giảm Trục (Axis)', '−5°'],
+      ['X / 6', 'Tăng Trục (Axis)', '+5°'],
+      ['↑ / 7', 'Tăng độ rộng khe', '+5%'],
+      ['↓ / 8', 'Giảm độ rộng khe', '−5%'],
+    ],
+  },
+  en: {
+    introTitle: 'RETINOSCOPY SIMULATOR',
+    start: 'Start',
+    appSub: 'Retinoscopy simulator',
+    helpBtn: 'Controls guide',
+    creditBuild: 'Web edition built from scratch by',
+    creditBased: 'Based on',
+    creditOf: 'by',
+    creditShort: 'Based on RetiSim by',
+    disclaimer: 'For training only; not a substitute for clinical examination.',
+    g1: '1. Working distance & method',
+    dist: 'Distance',
+    method: 'Method',
+    mRoutine: 'Standard retinoscopy',
+    mWd: 'Working-distance lens',
+    mFog: 'Full fogging',
+    bright: 'Reflex brightness',
+    g2: '2. Retinoscope (Streak)',
+    orient: 'Streak orientation',
+    rot90: 'Rotate 90°',
+    width: 'Streak width',
+    g3: '3. Trial lenses (Neutralization)',
+    sph: 'Sphere (Sph)',
+    cyl: 'Cylinder (Cyl)',
+    axis: 'Axis',
+    wdLens: 'WD lens',
+    fog: 'Fog',
+    removeWd: 'Remove WD lens',
+    resetTrial: 'Reset trial lenses',
+    g4: '4. Case management',
+    newCase: 'New case',
+    toggleAns: 'Show/Hide answer',
+    check: 'Check result',
+    hiddenAns: '--- Answer hidden ---',
+    answer: 'Answer',
+    manual: 'Manual case entry',
+    manualHint: 'Minus-cylinder form. Sph −30.00 to +25.00 D, Cyl −8.00 to 0.00 D, Axis 1–180°.',
+    applyManual: 'Apply manual case',
+    hintMouse: 'Move mouse to sweep · Wheel: ±5° · Right-click: 90°',
+    hintTouch: 'Drag finger to sweep · Two-finger twist: ±5° · Double-tap: 90°',
+    hudStreak: 'Streak',
+    tNew: 'New case created',
+    tManual: 'Manual case applied',
+    tRemovedWd: 'Working-distance lens removed',
+    tRemovedFog: 'Converted: Sph + Fog − working-distance lens',
+    tReset: 'Trial lenses reset',
+    tMethod: 'Method changed, trial lenses reset',
+    rptHeader: 'Assessment result',
+    rptTitle: 'RETINOSCOPY RESULT REPORT',
+    rptDist: 'Working distance',
+    rptMethod: 'Method',
+    rptNeutral: 'Lens power at neutral',
+    rptFinal: 'Result (final prescription)',
+    rptTruth: 'True prescription',
+    rptTol: 'TOLERANCE TABLE',
+    rptS: 'Sphere (Sph)',
+    rptC: 'Cylinder (Cyl)',
+    rptA: 'Axis',
+    tolWord: 'Tolerance',
+    axisNA: 'Not assessed (no astigmatism)',
+    warnWd: 'The working-distance lens was not removed. The final prescription still includes the {wd} D WD lens.',
+    warnFog: 'The working-distance lens ({wd} D) was not subtracted. The final prescription is Sph + Fog without conversion.',
+    vExcellent: 'EXCELLENT! PERFECT NEUTRALIZATION.',
+    vPass: 'PASS! RESULT IS WITHIN TOLERANCE.',
+    vFail: 'NOT YET. RE-CHECK YOUR NEUTRAL POINT.',
+    helpTitle: 'Controls guide',
+    helpTouchH: 'Tablet / touch screen',
+    helpTouch: [
+      'Touch and drag anywhere in the simulation area to sweep the streak. Drag above or below the eye to keep the pupil uncovered.',
+      'Place two fingers and twist to rotate the streak in 5° steps.',
+      'Double-tap the simulation area to rotate the streak 90°.',
+      'When Cyl is not 0: touch and drag the red marker on the trial frame to set the axis (rounded to 5°).',
+      'Hold a + / − button to change the value continuously.',
+    ],
+    helpMouseH: 'Mouse',
+    helpMouse: [
+      'Move the mouse in the simulation area to sweep the streak across the pupil.',
+      'Mouse wheel: rotate the streak by 5°.',
+      'Right-click: rotate 90°.',
+      'When Cyl is not 0: hold the left button on the red frame marker and drag to set the axis.',
+    ],
+    helpKeysH: 'Keyboard shortcuts',
+    keys: [
+      ['Q / 1', 'Increase Sphere', '+0.25 D'],
+      ['W / 2', 'Decrease Sphere', '−0.25 D'],
+      ['A / 3', 'Increase Cylinder (toward 0)', '+0.25 D'],
+      ['S / 4', 'Decrease Cylinder', '−0.25 D'],
+      ['Z / 5', 'Decrease Axis', '−5°'],
+      ['X / 6', 'Increase Axis', '+5°'],
+      ['↑ / 7', 'Widen streak', '+5%'],
+      ['↓ / 8', 'Narrow streak', '−5%'],
+    ],
+  },
+};
+
+/* ============================================================
+   Trạng thái & quy tắc
+   ============================================================ */
+const S = {
+  lang: 'vi',
+  dist: 50,               // cm
+  method: 'routine',      // routine | wd | fog
+  bright: 100,            // 50–100 %
+  streak: 180,            // hướng khe đèn (độ, 1–180)
+  width: 100,             // 10–100 %
+  sph: 0, cyl: 0, axis: 180, wd: 0, fog: 0, wdRemoved: false,
+  rx: { s: 0, c: 0, a: 180 },
+  showAnswer: false,
+  manual: { s: 0, c: 0, a: 180 },
+  t: 0,                   // vị trí khe đèn theo hướng quét (đơn vị: bán kính đồng tử)
+};
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const q25 = (v) => { const r = Math.round(v * 4) / 4; return Object.is(r, -0) || r === 0 ? 0 : r; };
+const normDeg = (v) => { v = Math.round(v); v = ((v % 180) + 180) % 180; return v === 0 ? 180 : v; };
+const wdPower = () => (S.dist === 50 ? 2.0 : 1.5);
+const tr = (k) => (I18N[S.lang][k] ?? I18N.vi[k] ?? k);
+const fmtD = (x) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2);
+const fmtRx = (r) => `${fmtD(r.s)} / ${fmtD(r.c)} × ${r.a}°`;
+
+function resetTrial() {
+  S.sph = 0; S.cyl = 0; S.axis = 180; S.fog = 0; S.wdRemoved = false;
+  S.wd = S.method === 'wd' ? wdPower() : 0;
+}
+
+function randomCase() {
+  const s = q25(-6 + Math.random() * 12);
+  const hasCyl = Math.random() < 0.7;
+  const c = hasCyl ? -0.25 * (1 + Math.floor(Math.random() * 16)) : 0; // −0.25 … −4.00
+  const a = hasCyl ? 5 * (1 + Math.floor(Math.random() * 36)) : 180;   // 5 … 180
+  return { s, c, a };
+}
+
+function resetManualInputs() { S.manual = { s: 0, c: 0, a: 180 }; }
+
+function newCase() {
+  S.rx = randomCase();
+  resetTrial();
+  S.showAnswer = false;
+  resetManualInputs();
+  syncUI(); toast(tr('tNew'));
+}
+
+/* Tháo kính bù khoảng cách theo quy tắc từng phương pháp */
+function removeWd() {
+  if (S.method === 'routine' || S.wdRemoved) return;
+  if (S.method === 'wd') {
+    S.wd = 0; S.wdRemoved = true; toast(tr('tRemovedWd'));
+  } else if (S.method === 'fog') {
+    S.sph = clamp(q25(S.sph + S.fog - wdPower()), -30, 30);
+    S.fog = 0; S.wdRemoved = true; toast(tr('tRemovedFog'));
+  }
+  syncUI();
+}
+
+/* Công thức cuối tính từ kính người học */
+function finalRx() {
+  const base = { c: S.cyl, a: S.axis };
+  if (S.method === 'routine') return { s: q25(S.sph - wdPower()), ...base };
+  if (S.method === 'wd') return { s: q25(S.sph + S.wd), ...base };
+  return { s: q25(S.sph + S.fog), ...base };
+}
+
+function evaluate() {
+  const fin = finalRx();
+  const rx = S.rx;
+  const dS = q25(fin.s - rx.s);
+  const dC = q25(fin.c - rx.c);
+  const axisApplies = fin.c !== 0 && rx.c !== 0;
+  let dA = 0;
+  if (axisApplies) { dA = ((fin.a - rx.a) % 180 + 180) % 180; if (dA > 90) dA -= 180; }
+  const passS = Math.abs(dS) <= 0.25 + 1e-9;
+  const passC = Math.abs(dC) <= 0.25 + 1e-9;
+  const passA = !axisApplies || Math.abs(dA) <= 5;
+  const warn = (S.method === 'wd' || S.method === 'fog') && !S.wdRemoved;
+  let verdict = 'fail';
+  if (passS && passC && passA) verdict = (dS === 0 && dC === 0 && dA === 0 && !warn) ? 'excellent' : 'pass';
+  return { fin, rx, dS, dC, dA, axisApplies, passS, passC, passA, warn, verdict,
+           neutral: { s: S.sph, c: S.cyl, a: S.axis } };
+}
+
+/* ============================================================
+   Mô hình quang học bóng đồng tử
+   ------------------------------------------------------------
+   Ma trận công suất (dioptric power matrix) của tật khúc xạ và
+   kính thử. Độ tồn dư tại người soi:
+     R = F(Rx) − F(kính) + (1/khoảng cách)·I
+   R > 0 ⇒ thuận chuyển, R < 0 ⇒ nghịch chuyển, R ≈ 0 ⇒ trung hòa.
+   Bóng phản xạ = ảnh của khe đèn qua G = k·R⁻¹: hướng bóng lệch
+   khỏi hướng khe khi khe không trùng kinh tuyến chính (break/skew),
+   tốc độ & độ rộng bóng tăng khi tiến gần trung hòa.
+   ============================================================ */
+const K_GAIN = 1.2;
+const NEUTRAL_EPS = 0.12;     // D — vùng trung hòa của mô hình
+const BIG = 1e3;
+
+function powerMatrix(s, c, aDeg) {
+  const a = aDeg * Math.PI / 180, sn = Math.sin(a), cs = Math.cos(a);
+  return [s + c * sn * sn, -c * sn * cs, s + c * cs * cs]; // [xx, xy, yy]
+}
+
+function reflexModel() {
+  const W = wdPower();
+  const rx = powerMatrix(S.rx.s, S.rx.c, S.rx.a);
+  const lensSph = S.sph + S.wd + S.fog;
+  const L = powerMatrix(lensSph, S.cyl, S.axis);
+  const a = rx[0] - L[0] + W, b = rx[1] - L[1], d = rx[2] - L[2] + W;
+  // trị riêng / véc-tơ riêng của ma trận đối xứng 2×2
+  const th = 0.5 * Math.atan2(2 * b, a - d);
+  const e1 = [Math.cos(th), Math.sin(th)], e2 = [-Math.sin(th), Math.cos(th)];
+  const l1 = a * e1[0] * e1[0] + 2 * b * e1[0] * e1[1] + d * e1[1] * e1[1];
+  const l2 = a + d - l1;
+  const gOf = (l) => (Math.abs(l) < NEUTRAL_EPS ? BIG : K_GAIN / l);
+  const g1 = gOf(l1), g2 = gOf(l2);
+  const G = [
+    g1 * e1[0] * e1[0] + g2 * e2[0] * e2[0],
+    g1 * e1[0] * e1[1] + g2 * e2[0] * e2[1],
+    g1 * e1[1] * e1[1] + g2 * e2[1] * e2[1],
+  ];
+  const mul = (v) => [G[0] * v[0] + G[1] * v[1], G[1] * v[0] + G[2] * v[1]];
+  const phi = S.streak * Math.PI / 180;
+  const s = [Math.cos(phi), Math.sin(phi)];
+  const n = [-Math.sin(phi), Math.cos(phi)];
+  let u = mul(s);
+  let len = Math.hypot(u[0], u[1]) || 1;
+  u = [u[0] / len, u[1] / len];
+  if (u[0] * s[0] + u[1] * s[1] < 0) u = [-u[0], -u[1]];
+  const nr = [-u[1], u[0]];
+  const Gnr = mul(nr);
+  const v = n[0] * Gnr[0] + n[1] * Gnr[1];          // tốc độ (có dấu) của bóng theo hướng quét
+  return { u, v, neutral: Math.abs(v) > 25, principal: [l1, l2] };
+}
+
+/* ============================================================
+   Vẽ mô phỏng (hệ toạ độ ảo 1000×1000)
+   ============================================================ */
+const canvas = $('sim');
+const ctx = canvas.getContext('2d');
+const CX = 500, CY = 500;
+const PUPIL_R = 80, IRIS_R = 185, RING_R = 345;
+let staticLayer = null;
+let pxSize = 0;
+let dirty = true;
+
+function bez(p0, p1, p2, p3, t) {
+  const m = 1 - t;
+  return [
+    m * m * m * p0[0] + 3 * m * m * t * p1[0] + 3 * m * t * t * p2[0] + t * t * t * p3[0],
+    m * m * m * p0[1] + 3 * m * m * t * p1[1] + 3 * m * t * t * p2[1] + t * t * t * p3[1],
+  ];
+}
+const UP = [[160, 500], [300, 330], [700, 330], [840, 500]];
+const LO = [[160, 500], [300, 640], [700, 640], [840, 500]];
+
+function seeded(seed) { let x = seed; return () => { x = (x * 16807) % 2147483647; return (x - 1) / 2147483646; }; }
+
+function buildStatic() {
+  const c = document.createElement('canvas');
+  c.width = c.height = pxSize;
+  const g = c.getContext('2d');
+  const sc = pxSize / 1000;
+  g.setTransform(sc, 0, 0, sc, 0, 0);
+  const rnd = seeded(7);
+
+  g.fillStyle = '#1b2430';
+  g.fillRect(0, 0, 1000, 1000);
+
+  // mặt
+  const skin = g.createRadialGradient(500, 440, 60, 500, 500, 520);
+  skin.addColorStop(0, '#f0c7a3'); skin.addColorStop(.75, '#dcaa80'); skin.addColorStop(1, '#c79469');
+  g.fillStyle = skin;
+  g.beginPath(); g.ellipse(500, 500, 445, 492, 0, 0, Math.PI * 2); g.fill();
+
+  // nếp mí
+  g.strokeStyle = 'rgba(130,75,45,.28)'; g.lineWidth = 7; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(190, 468); g.bezierCurveTo(320, 280, 680, 280, 810, 468); g.stroke();
+
+  // khoảng hở mi
+  const almond = () => {
+    g.beginPath(); g.moveTo(...UP[0]);
+    g.bezierCurveTo(...UP[1], ...UP[2], ...UP[3]);
+    g.bezierCurveTo(...LO[2], ...LO[1], ...LO[0]);
+    g.closePath();
+  };
+  g.save(); almond(); g.clip();
+  const scl = g.createRadialGradient(500, 500, 100, 500, 500, 360);
+  scl.addColorStop(0, '#fbf7f4'); scl.addColorStop(1, '#e6d8d2');
+  g.fillStyle = scl; g.fillRect(140, 300, 720, 400);
+  const car = g.createRadialGradient(180, 500, 2, 180, 500, 55);
+  car.addColorStop(0, 'rgba(232,140,140,.85)'); car.addColorStop(1, 'rgba(232,140,140,0)');
+  g.fillStyle = car; g.fillRect(120, 430, 130, 140);
+  // mống mắt
+  const iris = g.createRadialGradient(500, 500, PUPIL_R * .9, 500, 500, IRIS_R);
+  iris.addColorStop(0, '#2a140a'); iris.addColorStop(.35, '#5d3218'); iris.addColorStop(.8, '#7a4520'); iris.addColorStop(1, '#3a1d0d');
+  g.fillStyle = iris; g.beginPath(); g.arc(500, 500, IRIS_R, 0, Math.PI * 2); g.fill();
+  g.lineWidth = 2;
+  for (let i = 0; i < 140; i++) {
+    const a = rnd() * Math.PI * 2, r0 = PUPIL_R + 8 + rnd() * 20, r1 = IRIS_R - 6 - rnd() * 40;
+    g.strokeStyle = rnd() < .5 ? 'rgba(160,95,45,.22)' : 'rgba(25,10,4,.22)';
+    g.beginPath(); g.moveTo(500 + Math.cos(a) * r0, 500 + Math.sin(a) * r0); g.lineTo(500 + Math.cos(a) * r1, 500 + Math.sin(a) * r1); g.stroke();
+  }
+  g.strokeStyle = 'rgba(20,8,3,.6)'; g.lineWidth = 6;
+  g.beginPath(); g.arc(500, 500, IRIS_R - 3, 0, Math.PI * 2); g.stroke();
+  // bóng mi trên
+  const sh = g.createLinearGradient(0, 340, 0, 430);
+  sh.addColorStop(0, 'rgba(60,30,15,.45)'); sh.addColorStop(1, 'rgba(60,30,15,0)');
+  g.fillStyle = sh; g.fillRect(140, 330, 720, 110);
+  g.restore();
+
+  // bờ mi
+  g.strokeStyle = 'rgba(110,60,35,.75)'; g.lineWidth = 9;
+  g.beginPath(); g.moveTo(...UP[0]); g.bezierCurveTo(...UP[1], ...UP[2], ...UP[3]); g.stroke();
+  g.strokeStyle = 'rgba(150,90,60,.55)'; g.lineWidth = 5;
+  g.beginPath(); g.moveTo(...LO[0]); g.bezierCurveTo(...LO[1], ...LO[2], ...LO[3]); g.stroke();
+
+  // lông mi
+  g.lineCap = 'round';
+  for (let i = 0; i <= 46; i++) {
+    const t = 0.06 + 0.88 * (i / 46);
+    const p = bez(...UP, t), p2 = bez(...UP, Math.min(1, t + 0.01));
+    const tx = p2[0] - p[0], ty = p2[1] - p[1], l = Math.hypot(tx, ty);
+    const nx = ty / l, ny = -tx / l;                 // pháp tuyến hướng lên
+    const len = 30 + 26 * Math.sin(Math.PI * t) + rnd() * 8;
+    const lean = (t - 0.5) * 1.1;
+    g.strokeStyle = '#24140c'; g.lineWidth = 2.6;
+    g.beginPath(); g.moveTo(p[0], p[1]);
+    g.quadraticCurveTo(p[0] + nx * len * .6, p[1] + ny * len * .6, p[0] + nx * len + lean * len * .8, p[1] + ny * len * .75);
+    g.stroke();
+  }
+  for (let i = 0; i <= 30; i++) {
+    const t = 0.12 + 0.76 * (i / 30);
+    const p = bez(...LO, t), p2 = bez(...LO, Math.min(1, t + 0.01));
+    const tx = p2[0] - p[0], ty = p2[1] - p[1], l = Math.hypot(tx, ty);
+    const nx = -ty / l, ny = tx / l;                 // hướng xuống
+    const len = 12 + 8 * Math.sin(Math.PI * t);
+    g.strokeStyle = 'rgba(95,60,40,.8)'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(p[0] + nx * len + (t - .5) * 10, p[1] + Math.abs(ny) * len); g.stroke();
+  }
+
+  // gọng kính thử
+  g.strokeStyle = '#2c3238'; g.lineWidth = 22;
+  g.beginPath(); g.arc(500, 500, RING_R, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = 'rgba(190,205,220,.55)'; g.lineWidth = 2;
+  g.beginPath(); g.arc(500, 500, RING_R - 12, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(500, 500, RING_R + 12, 0, Math.PI * 2); g.stroke();
+  // vạch chia độ (TABO)
+  for (let deg = 0; deg <= 180; deg += 5) {
+    const a = deg * Math.PI / 180;
+    const major = deg % 30 === 0, mid = deg % 10 === 0;
+    const r0 = RING_R - 16, r1 = r0 - (major ? 26 : mid ? 16 : 9);
+    g.strokeStyle = major ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.7)';
+    g.lineWidth = major ? 4 : 2.4;
+    g.beginPath(); g.moveTo(500 + Math.cos(a) * r0, 500 - Math.sin(a) * r0); g.lineTo(500 + Math.cos(a) * r1, 500 - Math.sin(a) * r1); g.stroke();
+  }
+  g.fillStyle = 'rgba(255,255,255,.88)';
+  g.font = '600 22px "IBM Plex Mono", Consolas, monospace';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const deg of [0, 30, 60, 90, 120, 150, 180]) {
+    const a = deg * Math.PI / 180, r = RING_R - 62;
+    g.save();
+    g.translate(500 + Math.cos(a) * r, 500 - Math.sin(a) * r);
+    g.rotate(Math.PI / 2 - a);
+    g.fillText(deg === 0 ? '180' : String(deg), 0, 0);
+    g.restore();
+  }
+  return c;
+}
+
+function resizeCanvas() {
+  const st = $('stage');
+  const r = st.getBoundingClientRect();
+  const size = Math.max(200, Math.floor(Math.min(r.width, r.height)));
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  canvas.style.width = canvas.style.height = size + 'px';
+  const px = Math.round(size * dpr);
+  if (px !== pxSize) {
+    pxSize = px;
+    canvas.width = canvas.height = px;
+    staticLayer = buildStatic();
+  }
+  dirty = true;
+}
+
+function draw() {
+  if (!staticLayer) return;
+  const sc = pxSize / 1000;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(staticLayer, 0, 0);
+  ctx.setTransform(sc, 0, 0, sc, 0, 0);
+
+  const phi = S.streak * Math.PI / 180;
+  const n = [-Math.sin(phi), Math.cos(phi)];
+  const wf = S.width / 100;
+  const bandW = 2.3 * PUPIL_R * wf;           // độ rộng vệt sáng trên mặt
+  const bandL = RING_R * 2.05;
+
+  // vệt khe đèn chiếu trên mặt (không phủ lên đồng tử)
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, 1000, 1000); ctx.arc(CX, CY, PUPIL_R, 0, Math.PI * 2); ctx.clip('evenodd');
+  ctx.translate(CX + S.t * PUPIL_R * n[0], CY - S.t * PUPIL_R * n[1]);
+  ctx.rotate(-phi);
+  ctx.fillStyle = 'rgba(255,236,170,.24)';
+  ctx.strokeStyle = 'rgba(255,225,140,.45)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-bandL / 2, -bandW / 2, bandL, bandW, Math.min(14, bandW / 2));
+  else ctx.rect(-bandL / 2, -bandW / 2, bandL, bandW);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // đồng tử + bóng phản xạ
+  const m = reflexModel();
+  const hw = bandW / 2 / PUPIL_R;
+  const lo = Math.max(-1, S.t - hw), hi = Math.min(1, S.t + hw);
+  const illum = hi > lo ? Math.sqrt((hi - lo) / Math.min(2 * hw, 2)) : 0;
+  const meff = m.neutral ? 0 : K_GAIN / Math.max(Math.abs(m.v), 1e-6);
+  const bfac = 0.35 + 0.65 * Math.exp(-meff / 5);
+  const A = clamp(illum * bfac * (S.bright / 100), 0, 1);
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(CX, CY, PUPIL_R, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = '#0c0706'; ctx.fillRect(CX - PUPIL_R, CY - PUPIL_R, PUPIL_R * 2, PUPIL_R * 2);
+  ctx.translate(CX, CY);
+  ctx.scale(PUPIL_R, -PUPIL_R);                 // đơn vị = bán kính đồng tử, trục y hướng lên
+  if (A > 0.001) {
+    ctx.fillStyle = `rgba(150,40,15,${0.2 * A})`;
+    ctx.fillRect(-1, -1, 2, 2);
+    if (m.neutral) {
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      gr.addColorStop(0, `rgba(255,170,90,${A})`);
+      gr.addColorStop(1, `rgba(225,95,40,${0.85 * A})`);
+      ctx.fillStyle = gr; ctx.fillRect(-1, -1, 2, 2);
+    } else {
+      const o = S.t * m.v;
+      const wr = 0.5 * wf * Math.abs(m.v) + 0.15;
+      ctx.rotate(Math.atan2(m.u[1], m.u[0]));
+      const y0 = o - wr / 2, y1 = o + wr / 2;
+      const soft = Math.min(0.45, 0.06 + wr * 0.25) / wr;
+      const gr = ctx.createLinearGradient(0, y0, 0, y1);
+      gr.addColorStop(0, 'rgba(230,90,40,0)');
+      gr.addColorStop(Math.min(0.49, soft), `rgba(240,115,50,${0.9 * A})`);
+      gr.addColorStop(0.5, `rgba(255,165,85,${A})`);
+      gr.addColorStop(Math.max(0.51, 1 - soft), `rgba(240,115,50,${0.9 * A})`);
+      gr.addColorStop(1, 'rgba(230,90,40,0)');
+      ctx.fillStyle = gr; ctx.fillRect(-3, y0, 6, y1 - y0);
+    }
+  }
+  ctx.restore();
+  ctx.save();
+  const vig = ctx.createRadialGradient(CX, CY, PUPIL_R * .65, CX, CY, PUPIL_R);
+  vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.4)');
+  ctx.fillStyle = vig; ctx.beginPath(); ctx.arc(CX, CY, PUPIL_R, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // dấu chữ thập mờ
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.13)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 8]);
+  ctx.beginPath(); ctx.moveTo(180, CY); ctx.lineTo(820, CY); ctx.moveTo(CX, 360); ctx.lineTo(CX, 640); ctx.stroke();
+  ctx.restore();
+  // phản xạ giác mạc
+  ctx.fillStyle = 'rgba(255,255,255,.95)';
+  ctx.beginPath(); ctx.arc(CX - 9, CY - 12, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(CX + 7, CY - 4, 3, 0, Math.PI * 2); ctx.fill();
+
+  // vạch đỏ trục kính trụ
+  if (S.cyl !== 0) {
+    ctx.save();
+    ctx.strokeStyle = '#e8503c'; ctx.lineWidth = 13; ctx.lineCap = 'round';
+    for (const deg of [S.axis, S.axis + 180]) {
+      const a = deg * Math.PI / 180;
+      const r0 = RING_R - 26, r1 = RING_R + 26;
+      ctx.beginPath(); ctx.moveTo(CX + Math.cos(a) * r0, CY - Math.sin(a) * r0); ctx.lineTo(CX + Math.cos(a) * r1, CY - Math.sin(a) * r1); ctx.stroke();
+    }
+    if (axisDrag) {
+      const a = S.axis * Math.PI / 180;
+      ctx.strokeStyle = 'rgba(232,80,60,.35)'; ctx.lineWidth = 3; ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(CX - Math.cos(a) * RING_R, CY + Math.sin(a) * RING_R); ctx.lineTo(CX + Math.cos(a) * RING_R, CY - Math.sin(a) * RING_R); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = '#e8503c';
+    ctx.font = '700 34px "Be Vietnam Pro", system-ui, sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`Cyl: ${fmtD(S.cyl)} × ${S.axis}°`, 985, 60);
+  }
+
+  // thông tin khe đèn
+  ctx.fillStyle = 'rgba(220,230,240,.75)';
+  ctx.font = '600 24px "IBM Plex Mono", Consolas, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${tr('hudStreak')} ${S.streak}° · ${S.width}%`, 18, 40);
+}
+
+function loop() {
+  if (dirty) { dirty = false; draw(); }
+  requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   Thao tác trên vùng mô phỏng: chuột, cảm ứng, bút
+   ============================================================ */
+const pointers = new Map();
+let axisDrag = null;            // pointerId đang kéo trục
+let twist = null;               // { angle, acc }
+let lastTap = { time: 0, x: 0, y: 0 };
+let lastPointerType = 'mouse';
+
+function toVirtual(e) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width * 1000, (e.clientY - r.top) / r.height * 1000];
+}
+function sweepTo(vx, vy) {
+  const phi = S.streak * Math.PI / 180;
+  const dx = vx - CX, dy = CY - vy;
+  S.t = (dx * -Math.sin(phi) + dy * Math.cos(phi)) / PUPIL_R;
+  dirty = true;
+}
+function hitAxisMarker(vx, vy, type) {
+  if (S.cyl === 0) return false;
+  const dx = vx - CX, dy = CY - vy, r = Math.hypot(dx, dy);
+  const tolR = type === 'mouse' ? 34 : 60;
+  if (Math.abs(r - RING_R) > tolR) return false;
+  const ang = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 180;
+  let diff = Math.abs(ang - (S.axis % 180));
+  diff = Math.min(diff, 180 - diff);
+  return diff <= (type === 'mouse' ? 8 : 14);
+}
+function axisFromPoint(vx, vy) {
+  const ang = Math.atan2(CY - vy, vx - CX) * 180 / Math.PI;
+  S.axis = normDeg(Math.round(ang / 5) * 5);
+  syncUI();
+}
+function twistAngle() {
+  const [a, b] = [...pointers.values()];
+  return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  lastPointerType = e.pointerType;
+  const [vx, vy] = toVirtual(e);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() });
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (pointers.size === 2) {
+    axisDrag = null; twist = { angle: twistAngle(), acc: 0 };
+    return;
+  }
+  if (hitAxisMarker(vx, vy, e.pointerType)) { axisDrag = e.pointerId; axisFromPoint(vx, vy); return; }
+  sweepTo(vx, vy);
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  const p = pointers.get(e.pointerId);
+  if (p) { p.x = e.clientX; p.y = e.clientY; }
+  const [vx, vy] = toVirtual(e);
+  if (twist && pointers.size >= 2) {
+    const ang = twistAngle();
+    let d = ang - twist.angle;
+    if (d > 180) d -= 360; if (d < -180) d += 360;
+    twist.angle = ang;
+    twist.acc += -d;                           // màn hình y hướng xuống ⇒ đổi dấu
+    while (twist.acc >= 5) { twist.acc -= 5; setStreak(S.streak + 5); }
+    while (twist.acc <= -5) { twist.acc += 5; setStreak(S.streak - 5); }
+    return;
+  }
+  if (axisDrag === e.pointerId) { axisFromPoint(vx, vy); return; }
+  if (e.pointerType === 'mouse' || p) sweepTo(vx, vy);
+  if (e.pointerType === 'mouse' && !p) {
+    canvas.style.cursor = hitAxisMarker(vx, vy, 'mouse') ? 'grab' : 'crosshair';
+  }
+});
+
+function endPointer(e) {
+  const p = pointers.get(e.pointerId);
+  pointers.delete(e.pointerId);
+  if (axisDrag === e.pointerId) { axisDrag = null; dirty = true; }
+  if (pointers.size < 2) twist = null;
+  if (!p || e.type === 'pointercancel' || e.pointerType === 'mouse') return;
+  const now = performance.now();
+  const moved = Math.hypot(e.clientX - p.x0, e.clientY - p.y0);
+  if (now - p.t0 < 280 && moved < 14 && pointers.size === 0) {
+    if (now - lastTap.time < 340 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 50) {
+      rotate90(); lastTap.time = 0;
+    } else {
+      lastTap = { time: now, x: e.clientX, y: e.clientY };
+    }
+  }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (lastPointerType === 'mouse') rotate90();
+});
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  setStreak(S.streak + (e.deltaY < 0 ? 5 : -5));
+}, { passive: false });
+
+/* ============================================================
+   Hành động điều khiển
+   ============================================================ */
+function setStreak(v) { S.streak = normDeg(v); syncUI(); }
+function rotate90() { setStreak(S.streak + 90); }
+function setWidth(v) { S.width = clamp(Math.round(v / 5) * 5, 10, 100); syncUI(); }
+const act = {
+  sph: (d) => { S.sph = clamp(q25(S.sph + d), -30, 30); syncUI(); },
+  cyl: (d) => { S.cyl = clamp(q25(S.cyl + d), -8, 0); syncUI(); },
+  axis: (d) => { S.axis = normDeg(S.axis + d); syncUI(); },
+  fog: (d) => { if (S.method !== 'fog') return; S.fog = clamp(q25(S.fog + d), 0, 30); syncUI(); },
+  mSph: (d) => { S.manual.s = clamp(q25(S.manual.s + d), -30, 25); syncManual(); },
+  mCyl: (d) => { S.manual.c = clamp(q25(S.manual.c + d), -8, 0); syncManual(); },
+  mAx: (d) => { S.manual.a = normDeg(S.manual.a + d); syncManual(); },
+};
+
+function bindRepeat(id, fn) {
+  const btn = $(id);
+  let t1 = null, t2 = null, fired = false;
+  const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
+  btn.addEventListener('pointerdown', (e) => {
+    if (btn.disabled || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    e.preventDefault();
+    fired = true; fn();
+    t1 = setTimeout(() => { t2 = setInterval(() => { if (btn.disabled) stop(); else fn(); }, 85); }, 420);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => btn.addEventListener(ev, stop));
+  btn.addEventListener('click', () => { if (!fired) fn(); fired = false; });   // bàn phím / trợ năng
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+bindRepeat('sphMinus', () => act.sph(-0.25));
+bindRepeat('sphPlus', () => act.sph(+0.25));
+bindRepeat('cylMinus', () => act.cyl(-0.25));
+bindRepeat('cylPlus', () => act.cyl(+0.25));
+bindRepeat('axMinus', () => act.axis(-5));
+bindRepeat('axPlus', () => act.axis(+5));
+bindRepeat('fogMinus', () => act.fog(-0.25));
+bindRepeat('fogPlus', () => act.fog(+0.25));
+bindRepeat('orMinus', () => setStreak(S.streak - 5));
+bindRepeat('orPlus', () => setStreak(S.streak + 5));
+bindRepeat('wMinus', () => setWidth(S.width - 5));
+bindRepeat('wPlus', () => setWidth(S.width + 5));
+bindRepeat('mSphMinus', () => act.mSph(-0.25));
+bindRepeat('mSphPlus', () => act.mSph(+0.25));
+bindRepeat('mCylMinus', () => act.mCyl(-0.25));
+bindRepeat('mCylPlus', () => act.mCyl(+0.25));
+bindRepeat('mAxMinus', () => act.mAx(-5));
+bindRepeat('mAxPlus', () => act.mAx(+5));
+
+$('rot90Btn').addEventListener('click', rotate90);
+$('widthRange').addEventListener('input', (e) => setWidth(+e.target.value));
+$('brightRange').addEventListener('input', (e) => { S.bright = +e.target.value; syncUI(); });
+$('distSel').addEventListener('change', (e) => {
+  S.dist = +e.target.value;
+  if (S.method === 'wd' && !S.wdRemoved) S.wd = wdPower();
+  syncUI();
+});
+$('methodSel').addEventListener('change', (e) => {
+  S.method = e.target.value; resetTrial(); syncUI(); toast(tr('tMethod'));
+});
+$('removeWdBtn').addEventListener('click', removeWd);
+$('resetTrialBtn').addEventListener('click', () => { resetTrial(); syncUI(); toast(tr('tReset')); });
+$('newCaseBtn').addEventListener('click', newCase);
+$('toggleAnsBtn').addEventListener('click', () => { S.showAnswer = !S.showAnswer; syncUI(); });
+$('checkBtn').addEventListener('click', showReport);
+$('applyManualBtn').addEventListener('click', () => {
+  commitManualInputs();
+  S.rx = { ...S.manual };
+  resetTrial(); S.showAnswer = false; resetManualInputs();
+  syncUI(); toast(tr('tManual'));
+});
+
+/* Ô nhập ca thủ công: cho phép gõ trực tiếp */
+function parseNum(str) {
+  const v = parseFloat(String(str).replace(',', '.').replace('−', '-').replace(/[^0-9.+-]/g, ''));
+  return Number.isFinite(v) ? v : null;
+}
+function commitManualInputs() {
+  const s = parseNum($('mSph').value), c = parseNum($('mCyl').value), a = parseNum($('mAx').value);
+  if (s !== null) S.manual.s = clamp(q25(s), -30, 25);
+  if (c !== null) S.manual.c = clamp(q25(c > 0 ? -c : c), -8, 0);
+  if (a !== null) S.manual.a = normDeg(clamp(Math.round(a), 0, 180));
+  syncManual();
+}
+['mSph', 'mCyl', 'mAx'].forEach((id) => {
+  const el = $(id);
+  el.addEventListener('focus', () => { el.select(); });
+  el.addEventListener('change', commitManualInputs);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { commitManualInputs(); el.blur(); } });
+});
+
+/* Phím tắt */
+document.addEventListener('keydown', (e) => {
+  if ($('app').hidden) return;
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+  if (!$('reportOverlay').hidden || !$('helpOverlay').hidden) {
+    if (e.key === 'Escape' || e.key === 'Enter') { closeOverlays(); e.preventDefault(); }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const map = {
+    q: () => act.sph(+0.25), '1': () => act.sph(+0.25),
+    w: () => act.sph(-0.25), '2': () => act.sph(-0.25),
+    a: () => act.cyl(+0.25), '3': () => act.cyl(+0.25),
+    s: () => act.cyl(-0.25), '4': () => act.cyl(-0.25),
+    z: () => act.axis(-5), '5': () => act.axis(-5),
+    x: () => act.axis(+5), '6': () => act.axis(+5),
+    ArrowUp: () => setWidth(S.width + 5), '7': () => setWidth(S.width + 5),
+    ArrowDown: () => setWidth(S.width - 5), '8': () => setWidth(S.width - 5),
+  };
+  if (map[k]) { e.preventDefault(); map[k](); }
+});
+
+/* ============================================================
+   Đồng bộ giao diện
+   ============================================================ */
+function syncManual() {
+  $('mSph').value = fmtD(S.manual.s).replace('−', '-');
+  $('mCyl').value = fmtD(S.manual.c).replace('−', '-');
+  $('mAx').value = S.manual.a + '°';
+}
+
+function syncUI() {
+  $('distSel').value = String(S.dist);
+  $('methodSel').value = S.method;
+  $('brightRange').value = S.bright; $('brightOut').textContent = S.bright + '%';
+  $('orVal').textContent = S.streak + '°';
+  $('widthRange').value = S.width; $('widthOut').textContent = S.width + '%';
+  $('sphVal').textContent = fmtD(S.sph);
+  $('cylVal').textContent = fmtD(S.cyl);
+  $('axVal').textContent = S.axis + '°';
+  $('wdVal').textContent = fmtD(S.wd);
+  $('wdVal').classList.toggle('is-off', S.method !== 'wd');
+  $('fogVal').textContent = fmtD(S.fog);
+  const fogOn = S.method === 'fog';
+  $('fogStepper').classList.toggle('is-off', !fogOn);
+  $('fogMinus').disabled = !fogOn || S.fog <= 0;
+  $('fogPlus').disabled = !fogOn;
+  $('cylPlus').disabled = S.cyl >= 0;
+  $('cylMinus').disabled = S.cyl <= -8;
+  $('sphPlus').disabled = S.sph >= 30;
+  $('sphMinus').disabled = S.sph <= -30;
+  $('wMinus').disabled = S.width <= 10;
+  $('wPlus').disabled = S.width >= 100;
+  $('removeWdBtn').disabled = S.method === 'routine' || S.wdRemoved;
+  const box = $('answerBox');
+  if (S.showAnswer) {
+    box.className = 'answer-box shown-ans';
+    box.textContent = `${tr('answer')}: ${fmtRx(S.rx)}`;
+  } else {
+    box.className = 'answer-box hidden-ans';
+    box.textContent = tr('hiddenAns');
+  }
+  syncManual();
+  dirty = true;
+}
+
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = tr(el.dataset.i18n); });
+  $('langBtn').textContent = S.lang === 'vi' ? 'EN' : 'VI';
+  $('langBtn').setAttribute('aria-label', S.lang === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt');
+  $('introLang').value = S.lang;
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  $('stageHint').textContent = coarse ? tr('hintTouch') : tr('hintMouse');
+  try { localStorage.setItem('retisim-web-lang', S.lang); } catch (_) {}
+  syncUI();
+}
+
+document.querySelectorAll('.js-version').forEach((el) => { el.textContent = CONFIG.version; });
+document.querySelectorAll('.js-builder').forEach((el) => { el.textContent = CONFIG.builder; });
+document.querySelectorAll('.js-orig-app').forEach((el) => { el.textContent = CONFIG.originalApp; });
+document.querySelectorAll('.js-orig-author').forEach((el) => { el.textContent = CONFIG.originalAuthor; });
+
+/* ============================================================
+   Báo cáo, hướng dẫn, thông báo
+   ============================================================ */
+const icon = (id, cls = '') => `<svg class="${cls}" aria-hidden="true"><use href="#${id}"/></svg>`;
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function showReport() {
+  const r = evaluate();
+  const methodName = { routine: tr('mRoutine'), wd: tr('mWd'), fog: tr('mFog') }[S.method];
+  const sgnD = (x) => (x > 0 ? '+' : x < 0 ? '−' : '+') + Math.abs(x).toFixed(2) + 'D';
+  const sgnA = (x) => (x > 0 ? '+' : x < 0 ? '−' : '+') + Math.abs(x) + '°';
+  const rowD = (label, val, pass, tol) => `<tr><td>${label}</td><td class="num ${pass ? 'good' : 'badc'}">${val}</td><td class="tl">${tr('tolWord')}: ${tol}</td></tr>`;
+  const axisRow = r.axisApplies
+    ? rowD(tr('rptA'), sgnA(r.dA), r.passA, '±5°')
+    : `<tr><td>${tr('rptA')}</td><td class="num na" colspan="2">${tr('axisNA')}</td></tr>`;
+  let warn = '';
+  if (r.warn) {
+    const msg = (S.method === 'wd' ? tr('warnWd') : tr('warnFog')).replace('{wd}', fmtD(wdPower()));
+    warn = `<div class="warnbox">${icon('i-warn')}<span>${esc(msg)}</span></div>`;
+  }
+  const vMap = {
+    excellent: ['i-star', 'good', tr('vExcellent')],
+    pass: ['i-check-circle', 'good', tr('vPass')],
+    fail: ['i-x-circle', 'badc', tr('vFail')],
+  };
+  const [vi, vc, vt] = vMap[r.verdict];
+  $('reportBody').innerHTML = `
+    <h2 id="reportTitle">${icon('i-report')}${tr('rptTitle')}</h2>
+    <div class="meta">
+      <span>${tr('rptDist')}: ${S.dist} cm</span>
+      <span>${tr('rptMethod')}: ${esc(methodName)}</span>
+    </div>
+    <div class="rx-lines">
+      ${S.method === 'routine' ? `<div>${tr('rptNeutral')}: <span class="rx">${fmtRx(r.neutral)}</span></div>` : ''}
+      <div class="final">${tr('rptFinal')}: <span class="rx">${fmtRx(r.fin)}</span></div>
+      <div class="truth">${tr('rptTruth')}: <span class="rx">${fmtRx(r.rx)}</span></div>
+    </div>
+    <div class="tol">
+      <h3>${icon('i-table')}${tr('rptTol')}</h3>
+      <table><tbody>
+        ${rowD(tr('rptS'), sgnD(r.dS), r.passS, '±0.25D')}
+        ${rowD(tr('rptC'), sgnD(r.dC), r.passC, '±0.25D')}
+        ${axisRow}
+      </tbody></table>
+    </div>
+    ${warn}
+    <div class="verdict ${vc}">${icon(vi)}<span>${vt}</span></div>`;
+  $('reportOverlay').hidden = false;
+  $('reportOk').focus();
+}
+
+function showHelp() {
+  const L = I18N[S.lang];
+  $('helpBody').innerHTML = `
+    <h2 id="helpTitle">${tr('helpTitle')}</h2>
+    <div class="help-sec"><h3>${L.helpTouchH}</h3><ul class="help-list">${L.helpTouch.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+    <div class="help-sec"><h3>${L.helpMouseH}</h3><ul class="help-list">${L.helpMouse.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>
+    <div class="help-sec"><h3>${L.helpKeysH}</h3><table class="keys"><tbody>${L.keys.map((k) => `<tr><td>${k[0]}</td><td>${esc(k[1])}</td><td>${k[2]}</td></tr>`).join('')}</tbody></table></div>`;
+  $('helpOverlay').hidden = false;
+  $('helpOk').focus();
+}
+
+function closeOverlays() { $('reportOverlay').hidden = true; $('helpOverlay').hidden = true; }
+$('reportOk').addEventListener('click', closeOverlays);
+$('helpOk').addEventListener('click', closeOverlays);
+['reportOverlay', 'helpOverlay'].forEach((id) => $(id).addEventListener('click', (e) => { if (e.target.id === id) closeOverlays(); }));
+$('helpBtn').addEventListener('click', showHelp);
+$('langBtn').addEventListener('click', () => { S.lang = S.lang === 'vi' ? 'en' : 'vi'; applyLang(); });
+
+let toastTimer = null;
+function toast(msg) {
+  const el = $('toast');
+  el.textContent = msg; el.hidden = false;
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
+}
+
+/* ============================================================
+   Khởi động
+   ============================================================ */
+try { const l = localStorage.getItem('retisim-web-lang'); if (l === 'vi' || l === 'en') S.lang = l; } catch (_) {}
+$('introLang').addEventListener('change', (e) => { S.lang = e.target.value; applyLang(); });
+$('startBtn').addEventListener('click', () => {
+  $('intro').hidden = true;
+  $('app').hidden = false;
+  resizeCanvas();
+  window.scrollTo(0, 0);
+});
+
+S.rx = randomCase();
+resetTrial();
+applyLang();
+new ResizeObserver(() => { if (!$('app').hidden) resizeCanvas(); }).observe($('stage'));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { pxSize = 0; if (!$('app').hidden) resizeCanvas(); });
+requestAnimationFrame(loop);
+
+// truy cập nhanh khi gỡ lỗi
+window.__retisim = { S, reflexModel, evaluate, finalRx, syncUI, showReport, draw, removeWd, resetTrial };
+if (location.hash === '#start') $('startBtn').click();
+})();
+</script>
+
+</body>
+</html>
